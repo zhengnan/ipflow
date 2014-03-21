@@ -25,11 +25,43 @@
 
 #include "cmdline.h"
 
+//////////////////////////////////////////////////////////////////////////////
+#ifndef MAX_RX_QUES
+#define MAX_RX_QUES 8
+#endif
+//////////////////////////////////////////////////////////////////////////////
+
 int dpi_flag = 0;
 int xmit_flag = 1;
 
+TAB_ID flow_v6tab[MAX_RX_QUES]={0};
+tQueId v6q_tab[MAX_RX_QUES]={0};
+
 int rx_port = -1;
 int tx_port = -1;
+
+UINT4  flow_tabsz = 178911;
+
+static void init_dpi(int num_ques)
+{
+	int qid;
+
+	for(qid=0; qid<num_ques; qid++){
+		flow_v6tab[qid] = create_ipv6_flowtab(flow_tabsz, 1000, 0, CREAT_TCP | CREAT_UDP | CREAT_OTHER, 
+			30, (TimeFunc)flow_v6timeout, NULL);
+
+		v6q_tab[qid] = que_create(2000);
+		if(flow_v6tab[qid]){
+			int opt;
+
+			opt = rx_port;
+			set_flowtab_opt(flow_v6tab[qid], SET_FLOWTAB_IFINDEX, &opt);
+
+			opt = qid;
+			set_flowtab_opt(flow_v6tab[qid], SET_FLOWTAB_PID, &opt);
+		}
+	}
+}
 
 void show_help()
 {
@@ -51,9 +83,11 @@ int main(int argc, char** argv)
 	int numproc = 1;
 	int recv_mode;
 	char* pif;
-	char* bindstr;
+	char* bindstr = NULL;
 	char rxif[128];
 	char ifname[16];
+
+	lib_init();
 
 	for(i=1; i<argc; i++){
 		if(!strncmp(argv[i], "-dpi", 4)){
@@ -104,7 +138,24 @@ int main(int argc, char** argv)
 		else if(numproc == 4){
 			bindstr = "1:2:3:4";
 		}
-		set_sockopt(rx_sockfd, SET_BINGING, (int *)bindstr);
+		set_sockopt(rx_sockfd, SET_BINDING, (int *)bindstr);
 		
 	}
+
+	memset(flow_v6tab, 0, sizeof(flow_v6tab));
+
+	if(dpi_flag){
+		init_dpi(numproc);
+		InitProtoAnalyzer();
+	}
+
+	if(rx_sockfd>=0){
+		#if 0
+			set_frame_proc(rx_sockfd, (RX_PROC)ProcIpPkt);
+		#else
+			set_napi_proc(rx_sockfd, (RX_NAPI)ProcNapiPkt);
+		#endif
+	}
+
+	return 0;
 }
