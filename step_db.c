@@ -58,7 +58,7 @@ int write_in_file(UINT8 rx_bps, UINT4 rx_pps){
 	
 }
 */
-int db_update(UINT8 bps, UINT4 pps){
+int db_insert(UINT8 bps, UINT4 pps){
 	int handle;
 	int retValue;
 	char sql[100];
@@ -138,13 +138,13 @@ int main(int argc, char** argv){
 	{
 		tIfStat rxstat;
 		get_sockopt(sockfd, GET_IF_RXTX_STAT, (int *)&rxstat);
-		system("clear");
+		//system("clear");
 		//write_in_file(rxstat.rx_bps, rxstat.rx_pps);
-		db_update(rxstat.rx_bps, rxstat.rx_pps);
+		db_insert(rxstat.rx_bps*8+rxstat.rx_pps*PAD_LEN*8, rxstat.rx_pps);
         printf("eth%d %lu bps, %u pps.\n", sockfd,
             rxstat.rx_bps*8+rxstat.rx_pps*PAD_LEN*8, rxstat.rx_pps);
 		sleep(10);
-		system("clear");
+		//system("clear");
 	}
 	
 	close_sock(sockfd);
