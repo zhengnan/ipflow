@@ -146,7 +146,7 @@ static inline int proc_dpi_out(tEthpkt *pkthdr, tEther *pEth, tIpv6 *pIpv6)
 		}
 	}
 
-	return 1;
+	return 0;
 }
 
 static inline int proc_dpi_in(tEthpkt *pkthdr, tEther *pEth, tIpv6 *pIpv6)
@@ -159,13 +159,9 @@ int ProcNapiPkt(tEthpkt *pkthdr, int count)
 {
 	tEthpkt *phdr;
 	int ii;
-	int ifindex;
-	int qid;
 	UINT4 rxbytes = 0;
 
-	ifindex = pkthdr->ifindex;
-	qid     = pkthdr->pid;
-	phdr    = pkthdr;
+	phdr = pkthdr;
 
 	if(dpi_flag)
 	{
@@ -173,7 +169,7 @@ int ProcNapiPkt(tEthpkt *pkthdr, int count)
 	 	{
 	 		for(ii=0; ii<count; ii++)
 	 		{
-	 			if(phdr->pEth->proto == gn_ntohs(ETHERTYPE_IP))
+	 			if(phdr->pEth->proto == gn_ntohs(ETHERTYPE_IPv6))
 	 			{
 	 				proc_dpi_out(phdr, phdr->pEth, (tIpv6 *)phdr->pEth->data);
 	 			}
@@ -187,7 +183,7 @@ int ProcNapiPkt(tEthpkt *pkthdr, int count)
 	 	{
 	 		for(ii=0; ii<count; ii++)
 	 		{
-	 			if(phdr->pEth->proto == gn_ntohs(ETHERTYPE_IP))
+	 			if(phdr->pEth->proto == gn_ntohs(ETHERTYPE_IPv6))
 	 			{
 	 				proc_dpi_in(phdr, phdr->pEth, (tIpv6 *)phdr->pEth->data);
 	 			}
@@ -324,6 +320,26 @@ int main(int argc, char** argv)
 		#endif
 			start_proc(rx_sockfd);
 	}
+
+	while(1)
+	{
+		sleep(3);
+	}
+
+	if(dpi_flag)
+	{
+		ShutProtoAnalyzer();
+
+		for(i=0; i<numproc; i++)
+		{
+			if(flow_v6tab[i])
+			{
+				delete_ipv6_flowtab(flow_v6tab[i]);
+			}
+		}
+	}
+
+	close_sock(rx_sockfd);
 
 	return 0;
 }
