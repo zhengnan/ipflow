@@ -96,7 +96,7 @@ UINT4  flow_tabsz = 1789103;
 #define DB_NAME     "Flow_Info"
 #define USER_NAME   "admin"
 #define PASSWD      "buptnic"
-#define INSERT_SQL  "insert into flow (sip, dip, sport, dport, proto, appid, appname, bytes, pkts) values (%s, %s, %d, %d, %d, %d, %s, %u, %u)"
+#define INSERT_SQL  "insert into flow (sip, dip, sport, dport, proto, appid, appname, bytes, pkts) values ('%s', '%s', '%d', '%d', '%d', '%d', '%s', '%u', '%u')"
 ////////////////////////////////////////////////////////////////////////////////
 static inline UINT4 v6_hash(UINT1 *sip, UINT2 sport, UINT1 *dip, UINT2 dport, UINT4 hsize)
 {
@@ -126,11 +126,9 @@ static int db_insertV6(tIpV6Flow *flow)
 		return -1;
 	}
 
-	/*sprintf(sql, INSERT_SQL, inet6_htoa(flow->sip, NULL), inet6_htoa(flow->dip, NULL),
+	sprintf(sql, INSERT_SQL, inet6_htoa(flow->sip, NULL), inet6_htoa(flow->dip, NULL),
 		gn_ntohs(flow->sport), gn_ntohs(flow->dport), flow->proto, flow->appid, 
-		GetNamebyProtoId(flow->appid), flow->ext.up_bytes, flow->ext.up_pkts);*/
-
-    sprintf(sql, "insert into flow (sip, dip) values (%s, %s)", inet6_htoa(flow->sip, NULL), inet6_htoa(flow->dip, NULL));
+		GetNamebyProtoId(flow->appid), flow->ext.up_bytes, flow->ext.up_pkts);
 
 	retValue = db_excute(handle, sql);
 
@@ -1230,7 +1228,7 @@ int main(int argc, char** argv)
 
         for (ifindex=0; ifindex<NUM_CARDS; ifindex++)
         {
-        #if debug_flag
+        #if 1
             if (debug_flag & DEBUG_STAT)
             {
                 tIfStat rxstat;
