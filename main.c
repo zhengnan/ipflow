@@ -96,7 +96,7 @@ UINT4  flow_tabsz = 1789103;
 #define DB_NAME     "Flow_Info"
 #define USER_NAME   "admin"
 #define PASSWD      "buptnic"
-#define INSERT_SQL  "insert into flow (sip, dip, sport, dport, proto, appid, appname, bytes, pkts) values ('%s', '%s', '%d', '%d', '%d', '%d', '%s', '%u', '%u')"
+#define INSERT_SQL  "insert into flow (sip, dip, sport, dport, proto, appid, appname, url, bytes, pkts) values ('%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s','%u', '%u')"
 ////////////////////////////////////////////////////////////////////////////////
 static inline UINT4 v6_hash(UINT1 *sip, UINT2 sport, UINT1 *dip, UINT2 dport, UINT4 hsize)
 {
@@ -128,7 +128,7 @@ static int db_insertV6(tIpV6Flow *flow)
 
 	sprintf(sql, INSERT_SQL, inet6_htoa(flow->sip, NULL), inet6_htoa(flow->dip, NULL),
 		gn_ntohs(flow->sport), gn_ntohs(flow->dport), flow->proto, flow->appid, 
-		GetNamebyProtoId(flow->appid), flow->ext.up_bytes, flow->ext.up_pkts);
+		GetNamebyProtoId(flow->appid), flow->ext.url, flow->ext.up_bytes, flow->ext.up_pkts);
 
 	retValue = db_excute(handle, sql);
 
@@ -145,6 +145,35 @@ static int db_insertV6(tIpV6Flow *flow)
 
 	return 1;
 
+}
+
+int substring(char *data ,char *start ,char *end,char *buff,int len)
+{
+	char *s = strstr(data ,start);
+	if(s == NULL)
+	{
+		return -1;
+	}
+	int s_len = strlen(start);
+	if( strlen(end) == 0	)			
+	{
+		if(strlen(start) >= len )	return 0;
+		strcpy(buff,s+s_len);
+	}
+	else									
+	{
+		char *e = strstr(s+s_len , end);
+		if(e == NULL)
+		{
+			return -1;
+		}	
+		if(	e - s - s_len <=0 ||  e - s - s_len >= len	)
+		{
+			return -1;
+		}
+		memcpy(buff,s+strlen(start) , e - s - strlen(start));
+	}
+	return 0;
 }
 
 static void flow_timeout(void *owner, tTimer *tid)
@@ -465,6 +494,22 @@ static INLINE int proc_v6dpi_out(tEthpkt *pkthdr, tEther *pEth, tIpv6 *pIpv6)
     index   = rxtx_buddy[pkthdr->ifindex];
     pid     = pkthdr->pid;
 
+    tIpv6 *pIp;
+    tTcp *pTcp;
+    char *data;
+    char host[50];
+
+    pIp  = (tIpv6 *)pEth->data;
+    pTcp = (tTcp *)pIp->data;
+    data = pTcp->data;
+
+    if(strstr(data, "GET "))
+    {
+    	memset(host, 0, sizeof(host));
+
+    	substring(data,"Host: ","\r\n", host, sizeof(host));
+    }
+
     flow    = create_ipv6flow_safe_ext(flow_v6tab[index][pid], pIpv6, &flag);
     if (!flow)
     {
@@ -476,6 +521,7 @@ static INLINE int proc_v6dpi_out(tEthpkt *pkthdr, tEther *pEth, tIpv6 *pIpv6)
         memset(flow->userdata, 0, FLOW_EXTSIZE);
         flow->ext.t_start = cur_sys_time.tv_sec;
         flow->ext.t_stop  = cur_sys_time.tv_sec;
+        strcpy(flow->ext.url, host);
 
         if ((debug_flag & DEBUG_FLOW) && flow)
         {
